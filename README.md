@@ -50,3 +50,19 @@ Activate the virtual environment, then
 cd src/lambdas
 ./run_tests.sh
 ```
+
+### Coding Challenge
+
+This is an AWS serverless application with an API Gateway and a DynamoDB table. The first endpoint is a POST with a request body, to persist a Tenant to a table. For this application, the Tenant is an "account".
+
+Fork the repository and update the code to:
+
+- Update the POST body:
+  - Validate the `website` field to be a valid domain name
+  - Add at least one more field to the account
+- Persist the item in the DynamoDB table
+  - Allocate a unique identifier and return it in the response
+  - Create the item in the table, detecting collisions without first reading the item (hint: ConditionalExpression)
+  - Add a createdAt and updatedAt field to the table, but do not return it in the response
+- Evolve the tests with 90% or greater coverage
+  - Update integration and unit tests, deciding what should be unit vs. integration
