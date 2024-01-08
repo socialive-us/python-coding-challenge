@@ -1,0 +1,15 @@
+# Editors
+*.swp
+
+# Python virtual environment
+.venv
+
+# Python
+__pycache__
+junit_reports
+coverage_reports
+.coverage
+.pytest_cache
+
+# macOS
+.DS_Store

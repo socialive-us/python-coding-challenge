@@ -1,0 +1,2 @@
+[run]
+omit = create_tenant/tests/*,*/__init__.py

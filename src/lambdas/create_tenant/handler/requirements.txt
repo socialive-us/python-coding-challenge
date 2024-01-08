@@ -1,0 +1,4 @@
+# These are provided by the Layer
+boto3==1.26.90
+pydantic==1.9.0
+requests==2.27.1
