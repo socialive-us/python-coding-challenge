@@ -17,8 +17,6 @@ sudo apt-get install python3 python3-pip python3-venv
 
 #### MacOS
 
-#### MacOS
-
 ```
 brew update
 # First time python installation
@@ -39,7 +37,6 @@ source .venv/bin/activate
 Each following time:
 ```
 source .venv/bin/activate
-export PATH=${PATH}:${PWD}/node_modules/.bin
 ```
 
 ### Run Automated Tests
