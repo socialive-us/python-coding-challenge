@@ -6,9 +6,9 @@ See all trademarks at https://www.socialive.us/terms-of-service
 """
 import pytest
 
-
 ACCOUNT_NAME = "test-account"
 WEBSITE = "www.example.com"
+BAD_REQUEST = 400
 
 valid_body = {
     "name": ACCOUNT_NAME,
@@ -24,8 +24,9 @@ def test_verify_request_body():
     """
     from create_tenant.handler.app import _verify_request_body
 
-    request_body = _verify_request_body(valid_body)
+    success, request_body = _verify_request_body(valid_body)
 
+    assert success
     assert request_body.name == ACCOUNT_NAME
     assert request_body.website == WEBSITE
 
@@ -39,19 +40,39 @@ def test_verify_request_body_with_missing_fields():
     for field in fields:
         copy = valid_body.copy()
         del copy[field]
-        expected_err_msg = '{"statusCode": 400, "message": "' + field + ' may not be missing"}'
-        with pytest.raises(Exception, match=expected_err_msg):
-            _verify_request_body(copy)
+        expected_response = {"statusCode": BAD_REQUEST,  'message': f'{field} may not be missing'}
+        success, response = _verify_request_body(copy)
+        assert not success
+        assert response == expected_response
 
-    expected_err_msg = '{"statusCode": 400, "message": "name may not be missing; website may not be missing"}'
-    with pytest.raises(Exception, match=expected_err_msg):
-        _verify_request_body({ })
+    expected_response = {"statusCode": BAD_REQUEST, "message": "name may not be missing; website may not be missing"}
+    success, response = _verify_request_body({ })
+    assert not success
+    assert response == expected_response
 
 
-# TODO write test for null (None) fields
+def test_verify_request_body_with_null_fields():
+    from create_tenant.handler.app import _verify_request_body
+
+    for field in fields:
+        copy = valid_body.copy()
+        copy[field] = None
+        expected_response = {"statusCode": BAD_REQUEST, "message": f"{field} may not be null"}
+        success, response = _verify_request_body(copy)
+        assert not success
+        assert response == expected_response
 
 
-# TODO write test for fields that only have whitespace
+def test_verify_request_body_with_only_whitespace_fields():
+    from create_tenant.handler.app import _verify_request_body
+
+    for field in fields:
+        copy = valid_body.copy()
+        copy[field] = ' '
+        expected_response = {"statusCode": BAD_REQUEST, "message": f"{field} may not be empty"}
+        success, response = _verify_request_body(copy)
+        assert not success
+        assert response == expected_response
 
 
 def test_verify_request_body_with_invalid_name():
@@ -66,9 +87,25 @@ def test_verify_request_body_with_invalid_name():
     for account_name, err_msg in test_data.items():
         copy = valid_body.copy()
         copy["name"] = account_name
-        expected_err_msg = '{"statusCode": 400, "message": "' + err_msg + '"}'
-        with pytest.raises(Exception, match=expected_err_msg):
-            _verify_request_body(copy)
+        expected_response = {"statusCode": BAD_REQUEST, "message": err_msg}
+        success, response = _verify_request_body(copy)
+        assert not success
+        assert response == expected_response
 
 
-# TODO write test for validating the website URL
+def test_verify_request_body_with_invalid_domain_website():
+    """
+    Verify validation of invalid fields
+    """
+    from create_tenant.handler.app import _verify_request_body
+
+    copy = valid_body.copy()
+    copy['website'] = 'Invalid domain'
+    success, response = _verify_request_body(copy)
+    assert not success
+    assert response == {'message': 'Invalid website domain', 'statusCode': BAD_REQUEST}
+
+    copy['website'] = 'www.novaliddomain.c'
+    success, response = _verify_request_body(copy)
+    assert not success
+    assert response == {'message': 'Invalid website domain', 'statusCode': BAD_REQUEST}
