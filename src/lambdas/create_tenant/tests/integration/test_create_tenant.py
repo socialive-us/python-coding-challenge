@@ -4,18 +4,16 @@ Title: test_create_tenant.py
 Copyright (c) 2024 Socialive. All rights reserved.
 See all trademarks at https://www.socialive.us/terms-of-service
 """
-# the first import is moto, so that moto gets loaded BEFORE the app.py and boto* modules
-from moto import mock_dynamodb
-import json
-import os
-import boto3
 import pytest
-
+from unittest.mock import patch, Mock
 
 # Constants
-TABLE_NAME = "testing-table"
 ACCOUNT_NAME = "test-account"
 WEBSITE = "www.example.com"
+TEST_COMMENT = "test-comment"
+CREATED = 201
+BAD_REQUEST = 400
+CONFLICT = 409
 
 
 def generate_api_gateway_event():
@@ -23,6 +21,7 @@ def generate_api_gateway_event():
         "body-json": {
             "name": ACCOUNT_NAME,
             "website": WEBSITE,
+            "comment": TEST_COMMENT,
         },
         "params": {
             "querystring": {},
@@ -60,55 +59,49 @@ def generate_api_gateway_event():
     }
 
 
-@pytest.fixture(scope="module")
-def env_variables():
-    """
-    Mock AWS Credentials for moto
-    """
-    os.environ["AWS_ACCESS_KEY_ID"] = "testing"
-    os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
-    os.environ["AWS_SECURITY_TOKEN"] = "testing"
-    os.environ["AWS_SESSION_TOKEN"] = "testing"
-
-
-@pytest.fixture(scope="function")
-def dynamodb_client(env_variables) -> boto3.client:
-    """
-    Mock DynamoDB client
-    """
-    with mock_dynamodb():
-        client = boto3.client("dynamodb", region_name="us-east-1")
-        client.create_table(
-            TableName=TABLE_NAME,
-            BillingMode="PAY_PER_REQUEST",
-            AttributeDefinitions=[
-                { "AttributeName": "accountId", "AttributeType": "S" }
-            ],
-            KeySchema=[
-                { "AttributeName": "accountId", "KeyType": "HASH" }
-            ]
-        )
-
-        yield client
-
-
-@pytest.fixture(scope="function")
-def app(env_variables, dynamodb_client):
-    from create_tenant.handler import app
-
-    app.DYNAMODB_TABLE_NAME = TABLE_NAME
-
-    yield app
-
-
 def test_tenant_created(app):
     """
     Verify the success case
     """
-    # Invoke handler
+    response = app.lambda_handler(generate_api_gateway_event(), None)
     response = app.lambda_handler(generate_api_gateway_event(), None)
 
-    assert response["statusCode"] == 201
-    assert f"/accounts/" in response["header"]["Location"]
-    #assert response["body"]["name"] == ACCOUNT_NAME
-    #assert response["body"]["website"] == WEBSITE
+    item = response.get('item')
+    item_id = item.get('id')
+
+    assert response["statusCode"] == CREATED
+    assert f"/accounts/{item_id}" in response["header"]["Location"]
+    assert response.get("item").get("name") == ACCOUNT_NAME
+    assert response.get("item").get("website") == WEBSITE
+
+
+def test_tenant_conflict_409(app):
+    import requests
+    from create_tenant.handler.app import ConditionExpressionException
+    exception = ConditionExpressionException('Conflict with item', status_code=requests.codes.conflict)
+    exception.message='Conflict with item'  # Don't know why is not being taken in the __init__
+
+    with patch('create_tenant.handler.app._create_item', side_effect=exception) as m:
+        response = app.lambda_handler(generate_api_gateway_event(), None)
+        m.assert_called_once()
+        assert response.get("statusCode") == CONFLICT
+        assert response.get('message') == 'Conflict with item'
+
+
+def test_tenant_error_400(app):
+    import requests
+    from create_tenant.handler.app import RequestBodyException
+    exception = RequestBodyException('website may not be null', status_code=requests.codes.bad_request)
+    exception.message='website may not be null'  # Don't know why is not being taken in the __init__
+
+    with patch('create_tenant.handler.app._verify_request_body', side_effect=exception) as m:
+        response = app.lambda_handler(generate_api_gateway_event(), None)
+        m.assert_called_once()
+        assert response.get("statusCode") == BAD_REQUEST
+        assert response.get('message') == 'website may not be null'
+
+
+def test_lambda_exits_with_error(app):
+    with patch('create_tenant.handler.app._create_item', side_effect=Exception):
+        with pytest.raises(Exception):
+            app.lambda_handler(generate_api_gateway_event(), None)
