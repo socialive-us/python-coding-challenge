@@ -22,13 +22,26 @@ from pydantic import BaseModel, ValidationError, validator
 API_PATH = "/api/v1/accounts"  # Path to this capability's API
 DYNAMODB_TABLE_NAME = os.getenv("DYNAMODB_TABLE_NAME")  # DynamoDB table name
 MAX_LENGTH_STRING = 255
-PATTERN = r'^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+PATTERN = r'^[a-z0-9.-]+\.[a-z]{2,63}$'
 
 # Globals
 aws_region = "us-east-1"
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 dynamodb_client = boto3.client("dynamodb", region_name=aws_region)
+
+
+class ConditionExpressionException(Exception):
+    def __init__(self, message, status_code, additional_info=None):
+        super().__init__(message)
+        self.status_code = status_code
+        self.additional_info = additional_info or {}
+
+class RequestBodyException(Exception):
+    def __init__(self, message, status_code, additional_info=None):
+        super().__init__(message)
+        self.status_code = status_code
+        self.additional_info = additional_info or {}
 
 
 def basic_check_for_strings(field_label, value):
@@ -73,30 +86,31 @@ def lambda_handler(event, _context):
     """
     try:
         logger.info(json.dumps(event, default=str))
-        success, request_body = _verify_request_body(event["body-json"])
-        if not success:
-            return _build_response(success, request_body)
-        
+        request_body = _verify_request_body(event["body-json"])
+
         account_id = str(uuid4())
-        success, item_response = _create_item(
+        item_response = _create_item(
             dynamodb_client,
             DYNAMODB_TABLE_NAME,
             account_id,
             request_body
         )
 
-        return _build_response(success, item_response, f"{API_PATH}/{account_id}")
+        return _build_response(True, item_response, f"{API_PATH}/{account_id}")
+    
+    except (RequestBodyException, ConditionExpressionException) as e:
+        return _build_response(False, {'statusCode': e.status_code, 'message': e.message})
 
     except Exception as ex:
         logger.error("%s: %s", type(ex), ex, exc_info=True)
         raise ex
 
 
-def _build_response(success: bool, response: Dict, api_path: str = None) -> Dict:
+def _build_response(success_response: bool, response: Dict, api_path: str = None) -> Dict:
     """
     Create the response object that will be serialized
     """
-    if success:
+    if success_response:
         response['header'] = {'Location': api_path}
         response['statusCode'] = requests.codes.created
 
@@ -104,27 +118,11 @@ def _build_response(success: bool, response: Dict, api_path: str = None) -> Dict
     return response
 
 
-def _build_error(
-        error_code: int = requests.codes.internal_server_error,
-        message: str = "An internal server error occurred") -> str:
-    """
-    Create an error object that will be serialized.
-    The statusCode field of this object is used to route
-    to the appropriate API Gateway method response.
-    """
-    return {
-        "statusCode": error_code,
-        "message": message
-    }
-
-
 def _verify_request_body(body: Dict[str, str]) -> CreateTenantRequest:
-    success = False
     try:
         request_body = CreateTenantRequest(**body)
-        success = True
-        return success, request_body
-    
+        return request_body
+
     except ValidationError as ex:
         err_msg = ""
         for err in ex.errors():
@@ -140,7 +138,7 @@ def _verify_request_body(body: Dict[str, str]) -> CreateTenantRequest:
             else:
                 err_msg += f"{err['msg']}"
         logger.error(err_msg)
-        return success, _build_error(requests.codes.bad_request, err_msg)
+        raise RequestBodyException(err_msg, status_code=requests.codes.bad_request)
 
 
 def _create_item(
@@ -149,7 +147,6 @@ def _create_item(
     account_id: str,
     request_body: CreateTenantRequest,
 ) -> Dict:
-    success = False
     try:
         item = {
             'accountId': {'S': account_id},
@@ -168,9 +165,8 @@ def _create_item(
         )
         item_dict = request_body.dict()
         item_dict['id'] = account_id
-        success = True
-        return success, {'item': item_dict}
+        return {'item': item_dict}
 
     except ClientError as ex:
         logger.error("%s: %s", type(ex), ex, exc_info=True)
-        return success, _build_error(requests.codes.conflict, 'Conflict with item')
+        raise ConditionExpressionException('Conflict with item', status_code=requests.codes.conflict)

@@ -4,7 +4,6 @@ Title: test_build_response.py
 Copyright (c) 2024 Socialive. All rights reserved.
 See all trademarks at https://www.socialive.us/terms-of-service
 """
-import json
 import pytest
 
 API_PATH = "/test-api/v1/accounts"
@@ -47,10 +46,3 @@ def test_build_response_conflict_failure():
     assert not response.get('header')
     assert response.get('statusCode') == CONFLICT
     assert response.get('message') == 'test-error'
-
-
-def test_build_error():
-    from create_tenant.handler.app import _build_error
-    response = _build_error(BAD_REQUEST, 'test error message')
-
-    assert response == {'statusCode': BAD_REQUEST, 'message': 'test error message'}

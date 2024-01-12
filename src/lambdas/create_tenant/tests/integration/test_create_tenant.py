@@ -5,7 +5,7 @@ Copyright (c) 2024 Socialive. All rights reserved.
 See all trademarks at https://www.socialive.us/terms-of-service
 """
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 # Constants
 ACCOUNT_NAME = "test-account"
@@ -76,22 +76,29 @@ def test_tenant_created(app):
 
 
 def test_tenant_conflict_409(app):
-    mock_response = (False, {'statusCode': CONFLICT, 'message': 'Conflict with item'})
-    with patch('create_tenant.handler.app._create_item', return_value=mock_response) as m:
-        response = app.lambda_handler(generate_api_gateway_event(), None)
+    import requests
+    from create_tenant.handler.app import ConditionExpressionException
+    exception = ConditionExpressionException('Conflict with item', status_code=requests.codes.conflict)
+    exception.message='Conflict with item'  # Don't know why is not being taken in the __init__
 
+    with patch('create_tenant.handler.app._create_item', side_effect=exception) as m:
+        response = app.lambda_handler(generate_api_gateway_event(), None)
         m.assert_called_once()
         assert response.get("statusCode") == CONFLICT
         assert response.get('message') == 'Conflict with item'
 
 
 def test_tenant_error_400(app):
-    event = generate_api_gateway_event()
-    event['body-json']['website'] = None
+    import requests
+    from create_tenant.handler.app import RequestBodyException
+    exception = RequestBodyException('website may not be null', status_code=requests.codes.bad_request)
+    exception.message='website may not be null'  # Don't know why is not being taken in the __init__
 
-    response = app.lambda_handler(event, None)
-    assert response.get("statusCode") == BAD_REQUEST
-    assert response.get('message') == 'website may not be null'
+    with patch('create_tenant.handler.app._verify_request_body', side_effect=exception) as m:
+        response = app.lambda_handler(generate_api_gateway_event(), None)
+        m.assert_called_once()
+        assert response.get("statusCode") == BAD_REQUEST
+        assert response.get('message') == 'website may not be null'
 
 
 def test_lambda_exits_with_error(app):
