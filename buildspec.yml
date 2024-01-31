@@ -1,0 +1,21 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+  build:
+    commands:
+      - npm ci
+      - npm run lint
+      - cd src/lambdas && ./build.sh && cd ../../..
+      - node -v
+      - npm -v
+
+# The output of the build stage is all the files required to synthesize the CDK
+artifacts:
+  files:
+    - "src/**/*"
+    - "cdk/**/*"
+    - "package.json"
+    - "package-lock.json"

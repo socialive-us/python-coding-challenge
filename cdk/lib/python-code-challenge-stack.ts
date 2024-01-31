@@ -21,7 +21,7 @@ export class PythonCodeChallengeStack extends Stack {
   }
 
   public setProviders(namespace: string, stackInputs: StackInputs, config: PythonCodeChallengeConfig): void {
-    const fullConfig = this.getDefaults(namespace, config);
+    const fullConfig = this.getDefaults(namespace, config);  // eslint-disable-line
   }
 
   public createResources(): void {
@@ -33,8 +33,8 @@ export class PythonCodeChallengeStack extends Stack {
     Tags.of(this).add('Namespace', namespace);
   }
 
-  private getDefaults(namespace: string, config: PythonCodeChallengeConfig): PythonCodeChallengeConfig {
+  private getDefaults(namespace: string, config: PythonCodeChallengeConfig): PythonCodeChallengeConfig {  // eslint-disable-line
     return {
-    }
+    };
   }
 }
