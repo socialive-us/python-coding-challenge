@@ -13,3 +13,7 @@ coverage_reports
 
 # macOS
 .DS_Store
+
+# CDK
+cdk.out
+node_modules

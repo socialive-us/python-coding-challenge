@@ -1,0 +1,28 @@
+{
+  "name": "cc-rest-api",
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/socialive-us/python-code-challenge"
+  },
+  "scripts": {
+    "cdk:synth": "cd cdk && npx cdk synth && cd ..",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix"
+  },
+  "devDependencies": {
+    "@aws-cdk/aws-lambda-python-alpha": "2.114.1-alpha.0",
+    "@types/node": "^10.17.27",
+    "@types/uuid": "^9.0.1",
+    "@typescript-eslint/eslint-plugin": "^6.7.5",
+    "@typescript-eslint/parser": "^6.7.5",
+    "aws-cdk": "^2.114.1",
+    "aws-cdk-lib": "2.114.1",
+    "constructs": "10.3.0",
+    "eslint": "^7.32.0",
+    "source-map-support": "^0.5.21",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.3.3",
+    "uuid": "^9.0.1"
+  }
+}

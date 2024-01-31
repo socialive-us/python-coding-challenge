@@ -7,22 +7,22 @@ This project is used for interviews.
 * Python3
 * pip3
 * virtualenv
+* nodeenv
+
+`nodeenv` is a Python project, so it requires Python to be installed.
 
 #### Linux (Ubuntu)
 
 ```
 sudo apt-get update
-sudo apt-get install python3 python3-pip python3-venv
+sudo apt-get install python3.11 python3-pip python3.11-venv
 ```
 
 #### MacOS
 
 ```
 brew update
-# First time python installation
-brew install python
-# Or, if python is already installed, but not Python3
-brew upgrade python
+brew install python@3.11
 ```
 
 ### Activate the Virtual Environment
@@ -30,13 +30,19 @@ brew upgrade python
 First time:
 ```
 mkdir .venv
-python3 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
+pip install nodeenv
+# Node version must match the docker image used in CodePipeline
+nodeenv --node=18.18.2 --python-virtualenv
+npm install aws-cdk@2.114.1
+export PATH=${PATH}:${PWD}/node_modules/.bin
 ```
 
 Each following time:
 ```
 source .venv/bin/activate
+export PATH=${PATH}:${PWD}/node_modules/.bin
 ```
 
 ### Run Automated Tests

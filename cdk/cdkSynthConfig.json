@@ -1,0 +1,9 @@
+{
+  "deployments": [
+    {
+      "awsAccount": "149579030255",
+      "awsRegion": "us-east-1",
+      "stageName": "sbx"
+    }
+  ]
+}
